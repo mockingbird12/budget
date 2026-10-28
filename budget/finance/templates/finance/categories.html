@@ -1,0 +1,74 @@
+<!-- finance/templates/finance/categories.html -->
+{% extends 'finance/base.html' %}
+{% load static %}
+{% block title %}Траты по категориям за {{ year }}{% endblock %}
+
+{% block content %}
+<h1>Траты по категориям — {{ year }}</h1>
+
+<form class="filters" method="get">
+    <label>Год:
+        <select name="year" onchange="this.form.submit()">
+            {% for y in years %}
+                <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+        </select>
+    </label>
+</form>
+
+{% if has_data %}
+<div style="background:#fff; padding:16px; margin-bottom:24px;">
+    <canvas id="chart" height="90"></canvas>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Категория</th>
+            {% for m in months %}<th class="num">{{ m }}</th>{% endfor %}
+            <th class="num">Итого</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in table_rows %}
+        <tr>
+            <td>{{ row.name }}</td>
+            {% for cell in row.cells %}<td class="num">{{ cell|floatformat:2 }}</td>{% endfor %}
+            <td class="num"><b>{{ row.total|floatformat:2 }}</b></td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{{ datasets|json_script:"chart-data" }}
+{{ months|json_script:"chart-months" }}
+<script>
+    const datasets = JSON.parse(document.getElementById('chart-data').textContent);
+    const months = JSON.parse(document.getElementById('chart-months').textContent);
+    new Chart(document.getElementById('chart'), {
+        type: 'bar',
+        data: {
+            labels: months,
+            datasets: datasets,
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: { stacked: true },
+                y: { stacked: true, beginAtZero: true },
+            },
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('ru-RU')} ₽`,
+                    },
+                },
+            },
+        },
+    });
+</script>
+{% else %}
+<div class="empty">За {{ year }} год расходов нет.</div>
+{% endif %}
+{% endblock %}

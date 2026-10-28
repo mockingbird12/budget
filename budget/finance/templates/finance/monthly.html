@@ -1,0 +1,58 @@
+<!-- finance/templates/finance/monthly.html -->
+{% extends 'finance/base.html' %}
+{% block title %}Траты за {{ month }}{% endblock %}
+
+{% block content %}
+<h1>Траты за {{ month }}</h1>
+
+<form class="filters" method="get">
+    <label>Месяц:
+        <select name="month" onchange="this.form.submit()">
+            {% for m in months_options %}
+                <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <span>Итого: <b>{{ total|floatformat:2 }} ₽</b></span>
+</form>
+
+{% if has_data %}
+<table>
+    <thead>
+        <tr>
+            <th>Дата</th>
+            <th>Категория</th>
+            <th>Счёт</th>
+            <th>Описание</th>
+            <th class="num">Сумма</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for tx in transactions %}
+        <tr>
+            <td>{{ tx.occurred_at|date:'d.m.Y H:i' }}</td>
+            <td>{{ tx.category.name|default:'—' }}</td>
+            <td>{{ tx.account.name }}</td>
+            <td>{{ tx.description|default:'' }}</td>
+            <td class="num">{{ tx.amount|floatformat:2 }} ₽</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% if transactions.has_other_pages %}
+<div class="filters" style="margin-top:16px">
+    {% if transactions.has_previous %}
+        <a href="?month={{ month }}&page={{ transactions.previous_page_number }}">← Назад</a>
+    {% endif %}
+    <span>Стр. {{ transactions.number }} из {{ transactions.paginator.num_pages }}</span>
+    {% if transactions.has_next %}
+        <a href="?month={{ month }}&page={{ transactions.next_page_number }}">Вперёд →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div class="empty">За {{ month }} расходов нет.</div>
+{% endif %}
+{% endblock %}

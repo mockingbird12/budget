@@ -1,0 +1,33 @@
+<!-- finance/templates/finance/base.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}Бюджет{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 0; background: #f6f7f9; color: #222; }
+        header { background: #fff; padding: 12px 24px; border-bottom: 1px solid #e3e5e8; }
+        header a { margin-right: 16px; text-decoration: none; color: #345; font-weight: 500; }
+        header a:hover { color: #06c; }
+        main { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+        h1 { margin: 0 0 16px; font-size: 22px; }
+        table { width: 100%; border-collapse: collapse; background: #fff; }
+        th, td { padding: 8px 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #fafbfc; font-weight: 600; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .filters { margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
+        select, button { padding: 6px 10px; font-size: 14px; }
+        .empty { color: #888; padding: 24px; text-align: center; background: #fff; }
+    </style>
+</head>
+<body>
+<header>
+    <a href="{% url 'page_categories' %}">Траты по категориям</a>
+    <a href="{% url 'page_monthly' %}">Траты по месяцам</a>
+</header>
+<main>
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>
