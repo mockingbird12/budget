@@ -22,8 +22,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'account', 'operation_type', 'category',
             'amount', 'currency', 'occurred_at', 'description',
-            'transfer_account', 'external_id', 'source',
+            'transfer_account', 'external_id', 'source', 'is_unknown',
         ]
+        read_only_fields = ['is_unknown']
 
     def validate(self, attrs):
         op = attrs.get('operation_type')

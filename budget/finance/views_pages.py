@@ -1,16 +1,17 @@
 # finance/views_pages.py
 from collections import defaultdict
-from datetime import datetime, date
+from datetime import datetime, date, time
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.db.models import Sum
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncYear, TruncMonth
 from django.shortcuts import render
 from django.core.paginator import Paginator
 
 from .models import Category, Transaction
 
-
+MSK = ZoneInfo('Europe/Moscow')
 
 
 def _month_range(start: date, end: date):
@@ -24,17 +25,29 @@ def _month_range(start: date, end: date):
             y += 1
 
 
+def _available_years() -> list[int]:
+    years = (
+        Transaction.objects
+        .filter(operation_type='expense', is_unknown=False)
+        .annotate(year=TruncYear('occurred_at'))
+        .values_list('year', flat=True)
+        .distinct()
+    )
+    return sorted({d.year for d in years if d}, reverse=True)
+
+
 def page_categories(request):
-    # фильтр по году, по умолчанию — текущий
-    today = date.today()
+    # фильтр по году, по умолчанию — текущий или последний с данными
+    years = _available_years()
+    default_year = years[0] if years else date.today().year
     try:
-        year = int(request.GET.get('year', today.year))
+        year = int(request.GET.get('year', default_year))
     except ValueError:
-        year = today.year
+        year = default_year
 
     qs = (
         Transaction.objects
-        .filter(operation_type='expense', occurred_at__year=year)
+        .filter(operation_type='expense', is_unknown=False, occurred_at__year=year)
         .annotate(month=TruncMonth('occurred_at'))
         .values('month', 'category__name')
         .annotate(total=Sum('amount'))
@@ -77,6 +90,7 @@ def page_categories(request):
 
     return render(request, 'finance/categories.html', {
         'year': year,
+        'years': sorted(set(years) | {year}, reverse=True),
         'months': months,
         'month_labels': month_labels,
         'datasets': datasets,
@@ -103,8 +117,9 @@ def page_monthly(request):
         Transaction.objects
         .filter(
             operation_type='expense',
-            occurred_at__gte=month_start,
-            occurred_at__lt=next_month,
+            is_unknown=False,
+            occurred_at__gte=datetime.combine(month_start, time(12, 0), tzinfo=MSK),
+            occurred_at__lt=datetime.combine(next_month, time(12, 0), tzinfo=MSK),
         )
         .select_related('account', 'category')
         .order_by('-occurred_at')

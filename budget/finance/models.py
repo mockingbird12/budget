@@ -22,6 +22,9 @@ class Account(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ['name']
+
     def __str__(self):
         return f'{self.name} ({self.balance} {self.currency})'
 
@@ -41,6 +44,40 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class CategoryKeyword(models.Model):
+    """Слово/фраза, по которой импортёр определяет категорию операции."""
+
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name='keywords',
+        verbose_name='категория',
+    )
+    keyword = models.CharField(max_length=100, verbose_name='слово')
+    priority = models.IntegerField(
+        default=0,
+        help_text='Чем больше значение, тем выше приоритет при совпадении',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='активно')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-priority', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['category', 'keyword'],
+                name='uniq_category_keyword',
+            ),
+        ]
+        verbose_name = 'ключевое слово категории'
+        verbose_name_plural = 'ключевые слова категорий'
+
+    def save(self, *args, **kwargs):
+        self.keyword = ' '.join(self.keyword.lower().split())
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.keyword} → {self.category.name}'
 
 
 class Transaction(models.Model):
@@ -65,6 +102,11 @@ class Transaction(models.Model):
     external_id = models.CharField(max_length=128, blank=True, db_index=True)
     source = models.CharField(max_length=50, blank=True)  # 'tbank', 'manual', ...
 
+    # операция, которую не удалось уверенно классифицировать (например, перевод
+    # между своими счетами без комментария). В балансе она учитывается, но в
+    # отчётах по доходам/расходам — нет.
+    is_unknown = models.BooleanField(default=False, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -76,6 +118,11 @@ class Transaction(models.Model):
         ]
         constraints = [
             models.CheckConstraint(check=models.Q(amount__gt=0), name='amount_positive'),
+            models.UniqueConstraint(
+                fields=['source', 'external_id'],
+                condition=~models.Q(external_id=''),
+                name='uniq_source_external_id',
+            ),
         ]
 
     def __str__(self):
