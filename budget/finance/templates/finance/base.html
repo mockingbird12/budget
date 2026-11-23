@@ -19,12 +19,19 @@
         .filters { margin-bottom: 16px; display: flex; gap: 8px; align-items: center; }
         select, button { padding: 6px 10px; font-size: 14px; }
         .empty { color: #888; padding: 24px; text-align: center; background: #fff; }
+        h2 { font-size: 17px; margin: 24px 0 10px; }
+        .summary { display: flex; gap: 24px; flex-wrap: wrap; background: #fff; padding: 12px 16px; margin-bottom: 8px; }
+        .positive { color: #208050; }
+        .negative { color: #c0392b; }
+        .hint { color: #777; font-size: 13px; margin-top: 12px; }
     </style>
 </head>
 <body>
 <header>
     <a href="{% url 'page_categories' %}">Траты по категориям</a>
-    <a href="{% url 'page_monthly' %}">Траты по месяцам</a>
+    <a href="{% url 'page_incomes' %}">Доходы по категориям</a>
+    <a href="{% url 'page_monthly' %}">Операции по месяцам</a>
+    <a href="{% url 'page_balance' %}">Баланс</a>
 </header>
 <main>
     {% block content %}{% endblock %}

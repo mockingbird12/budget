@@ -27,7 +27,8 @@ from zoneinfo import ZoneInfo
 
 from django.db import transaction as db_transaction
 
-from finance.models import Account, Category, CategoryKeyword, Transaction
+from finance.categorization import KeywordMatcher
+from finance.models import Account, Category, Transaction
 from finance.services import apply_transaction
 
 MSK = ZoneInfo('Europe/Moscow')
@@ -41,20 +42,6 @@ CURRENCY_SYMBOLS = {
     '€': 'EUR',
     '₸': 'KZT',
 }
-
-# Переводы между своими счетами: без категорийного комментария считаем
-# операцию неизвестной.
-OWN_TRANSFER_MARKERS = (
-    'перевод себе',
-    'внутренний перевод',
-    'перевод с договора',
-    'внесение наличных',
-    'снятие наличных',
-    'вывод средств',
-)
-EXTERNAL_PHONE_MARKER = 'внешний перевод по номеру'
-EXTERNAL_BANK_MARKER = 'внешний банковский перевод'
-INCOME_PREFIXES = ('кэшбэк', 'cashback', 'пополнение', 'возврат покупки', 'выплата за')
 
 AMOUNT_RE = re.compile(r'^([+-]?)\s*([\d\s\u00a0]+(?:[.,]\d+)?)\s*(.*)$')
 DATE_FORMATS = ('%d.%m.%Y %H:%M', '%d.%m.%Y')
@@ -162,59 +149,12 @@ class TbankImporter:
         self.account_name = account_name.strip()
         self.source = source
         self.dry_run = dry_run
-        self._keywords_by_type: dict[str, list[CategoryKeyword]] | None = None
+        self.matcher = KeywordMatcher()
 
     # --------------------------------------------------------------- категории
-    def _ensure_keywords(self) -> None:
-        if self._keywords_by_type is not None:
-            return
-
-        grouped: dict[str, list[CategoryKeyword]] = {}
-        query = (
-            CategoryKeyword.objects
-            .filter(is_active=True)
-            .select_related('category')
-        )
-        for keyword in query:
-            grouped.setdefault(keyword.category.operation_type, []).append(keyword)
-
-        # Приоритет: явный priority, затем более длинное слово, затем порядок в БД.
-        for items in grouped.values():
-            items.sort(key=lambda item: (-item.priority, -len(item.keyword), item.id))
-
-        self._keywords_by_type = grouped
-
-    def _match_category(self, description: str, operation_type: str) -> Category | None:
-        self._ensure_keywords()
-        text = description.lower()
-        for keyword in self._keywords_by_type.get(operation_type, ()):
-            if keyword.keyword in text:
-                return keyword.category
-        return None
-
     def classify(self, description: str, amount: Decimal) -> tuple[str, Category | None, bool]:
         """Вернуть (тип операции, категория, is_unknown)."""
-        text = description.strip().lower()
-
-        if text.startswith(EXTERNAL_PHONE_MARKER):
-            return 'expense', self._match_category(text, 'expense'), False
-
-        if any(marker in text for marker in OWN_TRANSFER_MARKERS):
-            direction = 'expense' if amount < 0 else 'income'
-            category = self._match_category(text, direction)
-            return direction, category, category is None
-
-        if text.startswith('оплата') or text.startswith('aia'):
-            return 'expense', self._match_category(text, 'expense'), False
-
-        if text.startswith(EXTERNAL_BANK_MARKER):
-            return 'expense', self._match_category(text, 'expense'), False
-
-        if text.startswith(INCOME_PREFIXES):
-            return 'income', self._match_category(text, 'income'), False
-
-        direction = 'expense' if amount < 0 else 'income'
-        return direction, self._match_category(text, direction), False
+        return self.matcher.classify(description, amount)
 
     # ------------------------------------------------------------------- разбор
     def read_rows(self, path: str | Path) -> list[Row]:
@@ -290,7 +230,7 @@ class TbankImporter:
         return account
 
     def run(self, path: str | Path) -> ImportReport:
-        self._ensure_keywords()
+        self.matcher.warmup()
         rows = self.read_rows(path)
         report = ImportReport(total_rows=len(rows))
 

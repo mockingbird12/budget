@@ -1,10 +1,10 @@
 <!-- finance/templates/finance/categories.html -->
 {% extends 'finance/base.html' %}
 {% load static %}
-{% block title %}Траты по категориям за {{ year }}{% endblock %}
+{% block title %}{{ page_title }} за {{ year }}{% endblock %}
 
 {% block content %}
-<h1>Траты по категориям — {{ year }}</h1>
+<h1>{{ page_title }} — {{ year }}</h1>
 
 <form class="filters" method="get">
     <label>Год:
@@ -69,6 +69,6 @@
     });
 </script>
 {% else %}
-<div class="empty">За {{ year }} год расходов нет.</div>
+<div class="empty">За {{ year }} год {{ kind_label }} нет.</div>
 {% endif %}
 {% endblock %}

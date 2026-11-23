@@ -4,7 +4,7 @@ from django.db import models, transaction as db_transaction
 from .models import Account, Transaction
 
 
-def _signed_delta(op_type: str, amount: Decimal) -> Decimal:
+def signed_delta(op_type: str, amount: Decimal) -> Decimal:
     if op_type == 'income':
         return amount
     if op_type == 'expense':
@@ -16,7 +16,7 @@ def _signed_delta(op_type: str, amount: Decimal) -> Decimal:
 def apply_transaction(tx: Transaction) -> Transaction:
     """Создаёт транзакцию и обновляет балансы счетов."""
     tx.save()
-    delta = _signed_delta(tx.operation_type, tx.amount)
+    delta = signed_delta(tx.operation_type, tx.amount)
 
     Account.objects.filter(pk=tx.account_id).update(
         balance=models.F('balance') + delta
